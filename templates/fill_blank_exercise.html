@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英语单词填空练习</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .exercise-container { border: 1px solid #ddd; border-radius: 8px; padding: 20px; }
+        .exercise-title { font-size: 24px; font-weight: bold; margin-bottom: 20px; color: #333; }
+        .english-paragraph { background-color: #f9f9f9; padding: 15px; border-radius: 6px; margin-bottom: 20px; line-height: 1.6; }
+        .blank-container {
+            display: inline-flex;
+            align-items: center;
+            position: relative;
+        }
+        .blank {
+            width: 60px;
+            height: 30px;
+            border-bottom: 2px solid #333;
+            margin: 0 5px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .blank-input {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 60px;
+            height: 100%;
+            border: none;
+            background: transparent;
+            text-align: center;
+            font-weight: bold;
+            outline: none;
+            font-size: 14px;
+        }
+        .chinese-translation { background-color: #eef7ff; padding: 15px; border-radius: 6px; margin-bottom: 20px; font-style: italic; }
+        .definition { display: none; background-color: #f0f8ff; padding: 15px; border-radius: 6px; margin-top: 15px; }
+        .word-bank { background-color: #f5f5f5; padding: 15px; border-radius: 6px; margin-bottom: 20px; }
+        .word-bank-title { font-weight: bold; margin-bottom: 10px; }
+        .word-list { list-style: none; display: flex; flex-wrap: wrap; gap: 10px; padding-left: 0; }
+        .word-list li { background-color: white; padding: 5px 10px; border-radius: 20px; border: 1px solid #ddd; }
+        .btn { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px; }
+        .submit-btn { background-color: #4CAF50; color: white; }
+        .new-btn { background-color: #2196F3; color: white; }
+        .result-section { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
+        .score { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 10px; }
+        .feedback { background-color: #f0f8ff; padding: 15px; border-radius: 6px; }
+        .show-btn { background-color: #4CAF50; color: white; }
+        .correct {
+            border-bottom-color: #2ecc71 !important;
+        }
+        .incorrect {
+            border-bottom-color: #e74c3c !important;
+        }
+        .btn-back {
+            background-color: #6c757d;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .btn-back:hover {
+            background-color: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <div class="exercise-container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h1 class="exercise-title">英语单词填空练习</h1>
+            <button id="back-to-menu" class="btn-back">返回菜单</button>
+        </div>
+        
+        <div class="english-paragraph" id="english-paragraph">
+            <!-- LLM生成的句子将在这里显示，其中的____会被替换为输入框 -->
+        </div>
+        
+        <button class="btn show-btn" onclick="toggleDefinition()">
+            显示中文释义
+        </button>
+
+        <div class="definition" id="definition">
+            <strong>中文翻译:</strong> <span id="chinese-translation">{{ exercise.translation }}</span>
+        </div>
+        
+        <div class="word-bank">
+            <div class="word-bank-title">单词库 (原形):</div>
+            <ul class="word-list" id="word-bank">
+                {% for word in word_list %}
+                <li>{{ word }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button id="check-answer" class="btn submit-btn">检查答案</button>
+            <button id="new-exercise" class="btn new-btn">生成新练习</button>
+            <button id="back-to-menu" class="btn-back">返回菜单</button>
+        </div>
+        
+        <div class="result-section" id="result-section" style="display: none;">
+            <div class="score" id="score"></div>
+            <div class="feedback" id="feedback"></div>
+        </div>
+    </div>
+
+    <script>
+        function toggleDefinition() {
+            const definition = document.getElementById("definition");
+            const button = document.querySelector(".show-btn");
+            
+            const isHidden = window.getComputedStyle(definition).display === "none";
+
+            if (isHidden) {
+                definition.style.display = "block";
+                button.textContent = "隐藏中文释义";
+            } else {
+                definition.style.display = "none";
+                button.textContent = "显示中文释义";
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+
+            const backToMenuBtns = document.querySelectorAll('#back-to-menu');
+            
+            backToMenuBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    window.location.href = '/'; // 重定向到菜单页面
+                });
+            });
+
+
+            const englishParagraph = document.getElementById('english-paragraph');
+            const checkAnswerBtn = document.getElementById('check-answer');
+            const newExerciseBtn = document.getElementById('new-exercise');
+            const resultSection = document.getElementById('result-section');
+            const scoreElement = document.getElementById('score');
+            const feedbackElement = document.getElementById('feedback');
+            
+            // 从模板获取数据
+            const sentence = "{{ exercise.sentence | safe }}";
+            const correctAnswers = {{ exercise.answer_list | tojson | safe }};
+            const translation = "{{ exercise.translation | safe }}";
+            
+            // 替换____为输入框
+            let processedSentence = sentence;
+            let blankIndex = 0;
+            
+            // 使用正则表达式匹配____并替换为输入框
+            processedSentence = processedSentence.replace(/____/g, (match) => {
+                blankIndex++;
+                return `
+                    <span class="blank-container" data-index="${blankIndex}">
+                        <span class="blank" data-index="${blankIndex}"></span>
+                        <input type="text" class="blank-input" data-index="${blankIndex}" placeholder="">
+                    </span>
+                `;
+            });
+            
+            // 显示处理后的句子
+            englishParagraph.innerHTML = processedSentence;
+            document.getElementById('chinese-translation').textContent = translation;
+            
+            // 确保输入框正确生成
+            const blankInputs = document.querySelectorAll('.blank-input');
+            if (blankInputs.length === 0) {
+                console.warn('未检测到填空输入框，请检查LLM生成的句子是否包含____标记');
+                englishParagraph.innerHTML = 
+                    '<p style="color: red;">生成练习失败，请重试。LLM返回的句子中未包含填空标记"____"</p>';
+                checkAnswerBtn.disabled = true;
+                return;
+            }
+            
+            // 检查答案功能
+            checkAnswerBtn.addEventListener('click', function() {
+                // 收集用户答案
+                const userAnswers = [];
+                blankInputs.forEach(input => {
+                    userAnswers.push(input.value.trim().toLowerCase());
+                });
+                
+                // 检查答案
+                let correctCount = 0;
+                const feedbackHTML = [];
+                const blankElements = document.querySelectorAll('.blank');
+                
+                for (let i = 0; i < correctAnswers.length; i++) {
+                    const userAnswer = userAnswers[i] || '';
+                    const correctAnswer = correctAnswers[i].toLowerCase();
+                    const isCorrect = userAnswer === correctAnswer;
+                    const blankElement = blankElements[i];
+                    
+                    if (isCorrect) {
+                        correctCount++;
+                        blankElement.classList.add('correct');
+                        feedbackHTML.push(`<p style="color: green;">✅ 空白 ${i+1}: 正确！你的答案 "${userAnswer}"，正确答案 "${correctAnswers[i]}"</p>`);
+                    } else {
+                        blankElement.classList.add('incorrect');
+                        feedbackHTML.push(`<p style="color: red;">❌ 空白 ${i+1}: 错误！你的答案 "${userAnswer}"，正确答案 "${correctAnswers[i]}"</p>`);
+                    }
+                }
+                
+                // 显示结果
+                scoreElement.textContent = `得分: ${correctCount}/${correctAnswers.length}`;
+                feedbackElement.innerHTML = feedbackHTML.join('');
+                resultSection.style.display = 'block';
+                
+                // 滚动到结果区域
+                resultSection.scrollIntoView({ behavior: 'smooth' });
+            });
+            
+            // 生成新练习
+            newExerciseBtn.addEventListener('click', function() {
+                window.location.href = '/fill_blank_exercise';
+            });
+            
+            // 自动聚焦到第一个空白处
+            if (blankInputs.length > 0) {
+                blankInputs[0].focus();
+            }
+        });
+    </script>
+</body>
+</html>

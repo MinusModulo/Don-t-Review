@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>续写故事</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.7/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.2.12/marked.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .container { border: 1px solid #ddd; border-radius: 8px; padding: 20px; }
+        .title { font-size: 24px; font-weight: bold; margin-bottom: 20px; color: #333; }
+        .background-section { margin-bottom: 20px; }
+        .background-title { font-weight: bold; margin-bottom: 10px; }
+        .background-content { background-color: #f0f8ff; padding: 15px; border-radius: 5px; }
+        .segments-section { margin-bottom: 20px; }
+        .segment { background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 15px; }
+        .segment-title { font-weight: bold; margin-bottom: 5px; }
+        .word-pool { background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px;
+            display: none; /* 默认为隐藏，根据需要显示 */
+        }
+        .word-pool.visible {
+            display: block;
+        }
+        .word-pool-title { font-weight: bold; margin-bottom: 10px; }
+        .word-list { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; padding-left: 0; }
+        .word-list li { background-color: white; padding: 5px 10px; border-radius: 20px; border: 1px solid #ddd; }
+        
+        /* 按钮样式优化 */
+        .action-buttons { 
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .action-btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            flex: 1;
+            min-width: 100px; /* 确保按钮在窄屏幕上有足够宽度 */
+        }
+        
+        .ai-btn { background-color: #2196F3; color: white; }
+        .user-btn { background-color: #4CAF50; color: white; }
+        .end-btn { background-color: #f44336; color: white; }
+        .exit-btn { background-color: #607D8B; color: white; }
+        
+        .user-segment { margin-bottom: 20px; display: none; }
+        .user-segment textarea { width: 100%; height: 150px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
+        .result-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; display: none; }
+        .result-title { font-weight: bold; margin-bottom: 10px; }
+        .result-content { background-color: white; padding: 15px; border-radius: 5px; }
+        .evaluation { margin-bottom: 15px; }
+        .suggestions { list-style: none; padding-left: 15px; }
+        .suggestions li { margin-bottom: 5px; }
+        .loading { display: none; text-align: center; color: #2196F3; margin: 10px 0; }
+        .confirm-section { margin-top: 20px; display: none; }
+        .confirm-buttons { display: flex; gap: 10px; }
+        
+        /* 加载动画样式 */
+        .waiting-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .waiting-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #2196F3;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">续写故事</h1>
+        
+        <div class="background-section">
+            <div class="background-title">故事背景:</div>
+            <div class="background-content" id="background-content">
+                {{ background | safe }}
+            </div>
+        </div>
+        
+        <div class="segments-section">
+            <div class="segments-title">已有故事段落:</div>
+            <div id="segments-container">
+                {% for segment in segments %}
+                <div class="segment">
+                    <div class="segment-title">段落 {{ loop.index }}</div>
+                    <div class="segment-content" markdown="1">
+                        {{ segment | safe }}
+                    </div>
+                </div>
+                {% else %}
+                <div class="segment">
+                    <div class="segment-title">开始你的第一个故事段落</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="word-pool" id="word-pool" hidden>
+            <ul class="word-list" id="word-list">
+                {% for word in word_pool %}
+                <li>{{ word }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        
+        <!-- 优化后的按钮布局 -->
+        <div class="action-buttons">
+            <button id="ai-continue-btn" class="action-btn ai-btn">AI续写段落</button>
+            <button id="user-continue-btn" class="action-btn user-btn">自己续写</button>
+            <button id="end-story-btn" class="action-btn end-btn">生成结尾</button>
+            <button id="exit-btn" class="action-btn exit-btn">退出</button>
+        </div>
+        
+        <div class="user-segment" id="user-segment">
+            <textarea id="user-segment-input" placeholder="在这里续写你的故事段落..."></textarea>
+            <button id="submit-segment-btn" class="action-btn user-btn">提交我的续写</button>
+        </div>
+        
+        <div class="result-section" id="result-section">
+            <div class="result-title">AI评估结果:</div>
+            <div class="result-content" id="result-content"></div>
+        </div>
+        
+        <div class="confirm-section" id="confirm-section">
+            <div class="confirm-buttons">
+                <button id="confirm-btn" class="action-btn user-btn">确认添加此段落</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载动画元素 -->
+    <div id="waiting-overlay" class="waiting-overlay">
+        <div class="waiting-content">
+            <div class="spinner"></div>
+            <p id="waiting-message">等待AI生成中，请稍候...</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const aiContinueBtn = document.getElementById('ai-continue-btn');
+            const userContinueBtn = document.getElementById('user-continue-btn');
+            const endStoryBtn = document.getElementById('end-story-btn');
+            const exitBtn = document.getElementById('exit-btn');
+            const userSegmentInput = document.getElementById('user-segment-input');
+            const submitSegmentBtn = document.getElementById('submit-segment-btn');
+            const resultSection = document.getElementById('result-section');
+            const resultContent = document.getElementById('result-content');
+            const wordPoolEl = document.getElementById('word-pool');
+            const confirmSection = document.getElementById('confirm-section');
+            const confirmBtn = document.getElementById('confirm-btn');
+            const waitingOverlay = document.getElementById('waiting-overlay');
+            const waitingMessage = document.getElementById('waiting-message');
+            
+            marked.setOptions({
+                breaks: true,   // 支持换行
+                gfm: true,      // 支持GitHub风格Markdown
+                smartLists: true, // 智能处理列表
+                smartypants: true // 智能处理引号和破折号
+            });
+            
+            // 修剪Markdown内容前导和尾随空格
+            function trimMarkdownContent(el) {
+                if (el.innerHTML) {
+                    el.innerHTML = el.innerHTML.trim();
+                }
+            }
+            
+            // 渲染所有Markdown元素
+            function renderMarkdown() {
+                document.querySelectorAll('[markdown="1"]').forEach(el => {
+                    trimMarkdownContent(el);
+                    el.innerHTML = marked.parse(el.innerHTML);
+                });
+            }
+    
+            // 获取单词池
+            const wordPool = Array.from(document.querySelectorAll('#word-list li')).map(li => li.textContent);
+
+            // 显示等待生成标识
+            function showWaitingOverlay(message = '等待AI处理中，请稍候...') {
+                waitingMessage.textContent = message;
+                waitingOverlay.style.display = 'flex';
+                document.body.style.overflow = 'hidden'; // 防止背景滚动
+            }
+            
+            // 隐藏等待生成标识
+            function hideWaitingOverlay() {
+                waitingOverlay.style.display = 'none';
+                document.body.style.overflow = ''; // 恢复背景滚动
+            }
+
+            // 显示AI评估结果
+            function showEvaluation(evaluation) {
+                // 确保suggestions是字符串类型
+                const suggestions = typeof evaluation.suggestions === 'string' 
+                    ? evaluation.suggestions 
+                    : JSON.stringify(evaluation.suggestions || []);
+                
+                // 处理建议列表
+                let suggestionsList = '';
+                if (suggestions) {
+                    // 尝试按行分割或直接显示
+                    if (suggestions.includes('\n')) {
+                        suggestionsList = suggestions.split('\n').map(s => `<li>${s}</li>`).join('');
+                    } else {
+                        suggestionsList = `<li>${suggestions}</li>`;
+                    }
+                } else {
+                    suggestionsList = '<li>无特别建议</li>';
+                }
+                
+                resultContent.innerHTML = `
+                    <div class="evaluation"><strong>评价:</strong> ${evaluation.evaluation || '无评价'}</div>
+                    <div class="suggestions"><strong>修改建议:</strong>
+                        <ul>
+                            ${suggestionsList}
+                        </ul>
+                    </div>
+                    <div class="evaluation"><strong>优化后的段落:</strong></div>
+                    <div class="segment-content" markdown="1">${evaluation.improved_segment || evaluation.segment || '无内容'}</div>
+                `;
+                
+                // 渲染Markdown
+                renderMarkdown();
+                
+                resultSection.style.display = 'block';
+                confirmSection.style.display = 'block';
+            }
+            
+            aiContinueBtn.addEventListener('click', async function() {
+                aiContinueBtn.disabled = true;
+                showWaitingOverlay('AI正在续写故事...');
+                
+                try {
+                    const response = await axios.post('/api/ai_continue', {
+                        word_pool: wordPool,
+                        is_end: false
+                    });
+                    
+                    if (response.data.success) {
+                        const evaluation = {
+                            evaluation: "AI生成的段落",
+                            suggestions: "这个段落是AI自动生成的",
+                            improved_segment: response.data.segment
+                        };
+                        showEvaluation(evaluation);
+                        
+                        // 保存AI生成的内容，用于确认
+                        confirmBtn.onclick = function() {
+                            axios.post('/api/ai_append', {
+                                segment: response.data.segment
+                            }).then(() => {
+                                location.reload();
+                            }).catch(error => {
+                                alert('确认失败: ' + error.message);
+                                console.error(error);
+                            });
+                        };
+                    } else {
+                        resultSection.style.display = 'block';
+                        resultContent.textContent = 'AI续写失败: ' + response.data.error;
+                    }
+                } catch (error) {
+                    resultSection.style.display = 'block';
+                    resultContent.textContent = 'AI续写出错: ' + error.message;
+                    console.error(error);
+                } finally {
+                    aiContinueBtn.disabled = false;
+                    hideWaitingOverlay();
+                }
+            });
+            
+            userContinueBtn.addEventListener('click', function() {
+                document.getElementById('user-segment').style.display = 'block';
+                resultSection.style.display = 'none';
+                confirmSection.style.display = 'none';
+            });
+            
+            submitSegmentBtn.addEventListener('click', async function() {
+                const segment = userSegmentInput.value.trim();
+                if (!segment) {
+                    alert('请输入你的续写内容');
+                    return;
+                }
+                
+                submitSegmentBtn.disabled = true;
+                showWaitingOverlay('AI正在评估你的续写...');
+                
+                try {
+                    const response = await axios.post('/api/user_continue', {
+                        segment: segment
+                    });
+                    
+                    if (response.data.success) {
+                        const evaluation = response.data.evaluation;
+                        showEvaluation(evaluation);
+                        
+                        // 保存用户的内容，用于确认
+                        confirmBtn.onclick = function() {
+                            axios.post('/api/ai_append', {
+                                segment: evaluation.improved_segment
+                            }).then(() => {
+                                location.reload();
+                            }).catch(error => {
+                                alert('确认失败: ' + error.message);
+                                console.error(error);
+                            });
+                        };
+                    } else {
+                        resultSection.style.display = 'block';
+                        resultContent.textContent = '处理你的续写失败: ' + response.data.error;
+                    }
+                } catch (error) {
+                    resultSection.style.display = 'block';
+                    let errorMsg = '处理你的续写出错: ';
+                    if (error.response && error.response.data) {
+                        errorMsg += error.response.data.error || error.message;
+                    } else {
+                        errorMsg += error.message;
+                    }
+                    resultContent.textContent = errorMsg;
+                    console.error('用户续写错误:', error);
+                } finally {
+                    submitSegmentBtn.disabled = false;
+                    hideWaitingOverlay();
+                }
+            });
+            
+            endStoryBtn.addEventListener('click', async function() {
+                endStoryBtn.disabled = true;
+                showWaitingOverlay('AI正在生成故事结尾...');
+
+                try {
+                    const response = await axios.post('/api/ai_continue', {
+                        word_pool: wordPool,
+                        is_end: true
+                    });
+                    
+                    if (response.data.success) {
+                        const evaluation = {
+                            evaluation: "AI生成的段落",
+                            suggestions: "这个段落是AI自动生成的",
+                            improved_segment: response.data.segment
+                        };
+                        showEvaluation(evaluation);
+                        
+                        // 保存AI生成的内容，用于确认
+                        confirmBtn.onclick = function() {
+                            axios.post('/api/ai_append', {
+                                segment: response.data.segment
+                            }).then(() => {
+                                window.location.href = '/novelist/full_story';
+                            }).catch(error => {
+                                alert('确认失败: ' + error.message);
+                                console.error(error);
+                            });
+                        };
+                    } else {
+                        resultSection.style.display = 'block';
+                        resultContent.textContent = '生成故事结尾失败: ' + response.data.error;
+                    }
+                } catch (error) {
+                    resultSection.style.display = 'block';
+                    resultContent.textContent = '生成故事结尾出错: ' + error.message;
+                    console.error(error);
+                } finally {
+                    endStoryBtn.disabled = false;
+                    hideWaitingOverlay();
+                }
+            });            
+            exitBtn.addEventListener('click', function() {
+                if (confirm('确定要退出当前故事吗？未保存的内容将会丢失。')) {
+                    window.location.href = '/novelist'; // 跳转到故事列表页
+                }
+            });
+
+            renderMarkdown();
+        });
+    </script>
+</body>
+</html>

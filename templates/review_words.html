@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>复习已学单词</title>
+</head>
+<body>
+    <h2>复习已学单词</h2>
+    <hr>
+    <p>例句中包含以下已学习的单词: 请勾选你感到陌生的单词</p>
+    <form action="/process_word_selection/{{ current_word.id }}" method="get">
+        {% for word in reviewed_words %}
+            <div>
+                <label><input type="checkbox" name="word_{{ word.id }}"> {{ word.word }} ({{ word.translation }})</label>
+                <a href="/show_word_detail/{{ word.id }}">查看详情</a>
+            </div>
+        {% endfor %}
+        <input type="submit" value="提交选择">
+        <input type="submit" name="all_remembered" value="全部记得">
+    </form>
+</body>
+</html>

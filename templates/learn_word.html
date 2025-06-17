@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.2.12/marked.min.js"></script>
+    <meta charset="UTF-8">
+    <title>学习单词: {{ word.word }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .word-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+        .word-header { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+        .pronunciation { color: #666; margin-bottom: 15px; }
+        .sentence { background-color: #f9f9f9; padding: 15px; border-radius: 6px; margin-bottom: 20px; }
+        .definition { display: none; background-color: #f0f8ff; padding: 15px; border-radius: 6px; margin-top: 15px; }
+        .options { margin-top: 20px; }
+        .btn { padding: 10px 15px; margin-right: 10px; border: none; border-radius: 5px; cursor: pointer; }
+        .show-btn { background-color: #4CAF50; color: white; }
+        .submit-btn { background-color: #008CBA; color: white; }
+        .back-btn { background-color: #f44336; color: white; }
+        .root-btn { background-color: #FF9800; color: white; }
+        .root-explanation { display: none; background-color: #e3f2fd; padding: 15px; border-radius: 6px; margin-top: 15px; }
+        .selectable-word { 
+            cursor: pointer; 
+            display: inline-block;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .selectable-word:hover {
+            background-color: #e0e0e0;
+        }
+        .selected {
+            background-color: #ffcccb;
+        }
+        /* 新增Markdown样式 */
+        .markdown-sentence h1, .markdown-sentence h2, .markdown-sentence h3 {
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .markdown-sentence p {
+            margin-bottom: 1rem;
+        }
+        .markdown-sentence ul, .markdown-sentence ol {
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .markdown-sentence li {
+            margin-bottom: 0.5rem;
+        }
+        .markdown-sentence code {
+            background-color: #f0f0f0;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .markdown-root {
+            line-height: 1.6;
+        }
+        .markdown-root h3 {
+            color: #333;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="word-card">
+        <div class="word-header">{{ word.word }}</div>
+        {% if word.pronunciation %}
+            <div class="pronunciation">[{{ word.pronunciation }}]</div>
+        {% endif %}
+        
+        <button class="btn root-btn" id="root-btn" onclick="toggleRootExplanation()">
+            显示词根词缀解释
+        </button>
+
+        <div class="root-explanation" id="root-explanation">
+            <h3>词根词缀解释</h3>
+            <div id="root-markdown" class="markdown-root loading">加载中...</div>
+        </div>
+
+
+        <div class="sentence" id="sentence-container">
+            <p><strong>英文例句:</strong></p>
+            <div id="english-sentence" class="markdown-sentence loading">加载中...</div>
+        </div>
+        
+        <button class="btn show-btn" onclick="toggleDefinition()">
+            显示单词释义
+        </button>
+        
+        <div class="definition" id="definition">
+            <h3>单词释义</h3>
+            <p>{{ word.translation }}</p>
+            
+            <h4>例句翻译</h4>
+            <p id="sentence-translation" class="loading">加载中...</p>
+        </div>
+        
+        <div class="options">
+            <h3>掌握程度</h3>
+            <form id="learning-form" action="/process_learning_choice/{{ word.id }}" method="post">
+                <label><input type="radio" name="choice" value="1"> 1. 完全不认识</label><br>
+                <label><input type="radio" name="choice" value="2"> 2. 有点印象，但不确定</label><br>
+                <label><input type="radio" name="choice" value="3"> 3. 认识</label><br>
+                <label><input type="radio" name="choice" value="4"> 4. 熟识</label><br>
+                
+                <h3>选择例句中不熟悉的单词 (当前单词不可选)</h3>
+                <p>点击单词进行选择/取消选择</p>
+                <input type="hidden" id="selected-words" name="selected_words">
+                <input type="hidden" id="unselected-words" name="unselected_words">
+                <input type="hidden" id="review-pool" name="review_pool">
+                
+                <input type="submit" class="btn submit-btn" value="提交学习选择" disabled style="display: none;">
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        function toggleDefinition() {
+            const definition = document.getElementById("definition");
+            const button = document.querySelector(".show-btn");
+            
+            const isHidden = window.getComputedStyle(definition).display === "none";
+
+            if (isHidden) {
+                definition.style.display = "block";
+                button.textContent = "隐藏单词释义";
+            } else {
+                definition.style.display = "none";
+                button.textContent = "显示单词释义";
+            }
+        }
+
+        function toggleRootExplanation() {
+            const rootExplanation = document.getElementById("root-explanation");
+            const button = document.getElementById("root-btn");
+            
+            const isHidden = window.getComputedStyle(rootExplanation).display === "none";
+
+            if (isHidden) {
+                rootExplanation.style.display = "block";
+                button.textContent = "隐藏词根词缀解释";
+                
+                // 如果内容尚未加载，则进行加载
+                if (document.getElementById('root-markdown').classList.contains('loading')) {
+                    loadRootExplanation();
+                }
+            } else {
+                rootExplanation.style.display = "none";
+                button.textContent = "显示词根词缀解释";
+            }
+        }
+
+        function loadRootExplanation() {
+            const rootMarkdown = document.getElementById('root-markdown');
+            rootMarkdown.classList.remove('loading');
+            
+            // 使用marked.js渲染Markdown
+            try {
+                const rootContent = `{{ word.root_explanation }}`;
+                if (rootContent && rootContent.trim() !== '') {
+
+                    marked.setOptions({
+                        breaks: true,
+                        gfm: true,
+                        smartLists: true,
+                        smartypants: true
+                    });
+                    console.log(rootContent)
+                    const safeContent = rootContent.replace(/-\*/g, '‑\*');
+                    rootMarkdown.innerHTML = marked.parse(safeContent);
+                } else {
+                    rootMarkdown.textContent = "暂无词根词缀解释";
+                }
+            } catch (error) {
+                console.error('渲染词根词缀解释出错:', error);
+                rootMarkdown.textContent = "词根词缀解释渲染失败";
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentWordID = "{{ word.id}}";
+            let reviewPool = [];
+
+            const socket = new WebSocket(`ws://${window.location.host}/ws/word/${currentWordID}`);
+
+            socket.onopen = function() {
+                console.log('WebSocket连接已建立，正在获取学习数据...');
+            };
+
+            socket.onmessage = function(event) {
+                try {
+                    const dataPackage = JSON.parse(event.data);
+                    console.log(dataPackage);
+                    handleLearningData(dataPackage);
+
+                    const submitBtn = document.querySelector(".submit-btn");
+                    submitBtn.style.display = "block";
+                    submitBtn.disabled = false; // 可选：同时启用按钮
+                } catch (error) {
+                    console.error('解析学习数据错误:', error);
+                    document.getElementById('english-sentence').textContent = '数据解析失败';
+                }
+            };
+
+            socket.onerror = function(error) {
+                console.error('WebSocket错误:', error);
+                document.getElementById('english-sentence').textContent = '获取数据失败，请检查网络连接';
+            };
+            
+            socket.onclose = function() {
+                console.log('WebSocket连接已关闭');
+            };
+            
+            function handleLearningData(dataPackage) {
+                try {
+                    reviewPool = JSON.parse(dataPackage.review_pool);
+                    const sentenceData = dataPackage.sentence_data;
+                    
+                    // 1. 使用marked.js渲染Markdown
+                    const markdownHTML = marked.parse(sentenceData.sentence);
+                    document.getElementById('english-sentence').innerHTML = markdownHTML;
+                    
+                    document.getElementById('sentence-translation').textContent = sentenceData.translation;
+                    
+                    const sentenceElement = document.getElementById('english-sentence');
+                    processSentence(sentenceElement);
+                    
+                    console.log('学习数据已加载完成');
+                } catch (error) {
+                    console.error('处理学习数据错误:', error);
+                    alert('处理学习数据失败，请重试');
+                }
+            }
+
+            // 处理单词替换（修复：正确处理当前单词）
+            function processSentence(element) {
+                if (!reviewPool || reviewPool.length === 0) {
+                    console.log('reviewPool为空，无法处理单词替换');
+                    return;
+                }
+                
+                const tempContainer = document.createElement('div');
+                tempContainer.innerHTML = element.innerHTML;
+                
+                reviewPool.forEach(word => {
+                    // 转义正则表达式中的特殊字符
+                    const escapedWord = word.occur.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const replacement = `<span class="selectable-word" data-id="${word.id}" data-occur="${word.occur}">${word.occur}</span>`;
+                    const regex = new RegExp(`\\b${escapedWord}\\b(?![^<]*>)`, 'gi');
+                    tempContainer.innerHTML = tempContainer.innerHTML.replace(regex, replacement);
+                    console.log('单词替换:', word.id, word.occur);
+                });
+                
+                element.innerHTML = tempContainer.innerHTML;
+            }
+            
+            // 使用事件委托处理单词选择（修复：使用closest方法）
+            const sentenceElement = document.getElementById('english-sentence');
+            sentenceElement.addEventListener('click', function(e) {
+                const wordEl = e.target.closest('.selectable-word');
+                if (wordEl) {
+                    wordEl.classList.toggle('selected');
+                    console.log('单词选择状态更新:', wordEl.textContent, wordEl.classList.contains('selected'));
+                }
+            });
+            
+            // 处理表单提交
+            const form = document.getElementById("learning-form");
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                console.log('表单提交处理开始');
+                
+                // 检查是否选择了掌握程度
+                const choice = document.querySelector('input[name="choice"]:checked');
+                if (!choice) {
+                    alert("请选择对这个单词的掌握程度");
+                    return;
+                }
+                console.log('掌握程度选择:', choice.value);
+                
+                // 收集所有可选择的单词
+                const allSelectableElements = Array.from(document.querySelectorAll('.selectable-word'));
+                
+                if (allSelectableElements.length === 0) {
+                    console.warn('没有可选择的单词');
+                }
+                
+                // 收集选中的单词并去重（修复：使用自定义去重函数）
+                const selectedWords = Array.from(new Set(allSelectableElements
+                    .filter(wordEl => wordEl.classList.contains('selected'))
+                    .map(wordEl => wordEl.getAttribute('data-id'))));
+                
+                // 收集未选中的单词并去重
+                const unselectedWords = Array.from(new Set(allSelectableElements
+                    .filter(wordEl => !wordEl.classList.contains('selected'))
+                    .map(wordEl => wordEl.getAttribute('data-id'))));
+                
+                console.log('选中的单词 (去重后):', selectedWords);
+                console.log('未选中的单词 (去重后):', unselectedWords);
+                
+                // 将选中和未选中的单词放入隐藏字段（修复：添加错误处理）
+                try {
+                    document.getElementById('selected-words').value = JSON.stringify(selectedWords);
+                    document.getElementById('unselected-words').value = JSON.stringify(unselectedWords);
+                } catch (error) {
+                    console.error('设置隐藏字段时出错:', error);
+                    alert('提交失败，请重试');
+                    return;
+                }
+
+                // 提交表单
+                console.log('表单即将提交到:', form.action);
+                this.submit();
+            });
+        });
+    </script>
+</body>
+</html>

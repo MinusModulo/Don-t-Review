@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>完整故事</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.2.12/marked.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .container { border: 1px solid #ddd; border-radius: 8px; padding: 20px; }
+        .title { font-size: 24px; font-weight: bold; margin-bottom: 20px; color: #333; }
+        .story-section { margin-bottom: 20px; }
+        .story-title { font-weight: bold; margin-bottom: 10px; font-size: 18px; }
+        .story-content { background-color: #f9f9f9; padding: 15px; border-radius: 5px; white-space: pre-wrap; }
+        .back-btn { padding: 10px 20px; background-color: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">完整故事</h1>
+        
+        <div class="story-section">
+            <div class="story-title">故事背景:</div>
+            <div class="story-content" id="background-content"></div>
+        </div>
+        
+        <div class="story-section">
+            <div class="story-title">故事内容:</div>
+            <div class="story-content" id="story-content"></div>
+        </div>
+        
+        <button class="back-btn" onclick="window.location.href='/novelist'">返回故事创作</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const fullStory = `{{ full_story | safe }}`;
+            const backgroundContent = document.getElementById('background-content');
+            const storyContent = document.getElementById('story-content');
+            
+            // 分割背景和故事内容
+            const parts = fullStory.split('故事内容：');
+            let background = '背景尚未生成';
+            let story = '故事段落尚未生成';
+            
+            if (parts.length > 0) {
+                const backgroundPart = parts[0].split('故事背景：');
+                if (backgroundPart.length > 1) {
+                    background = backgroundPart[1].trim();
+                }
+            }
+            
+            if (parts.length > 1) {
+                story = parts[1].trim();
+            }
+            
+            // 渲染背景和故事
+            backgroundContent.textContent = background;
+            storyContent.textContent = story;
+            
+            // 应用Markdown格式
+            marked.setOptions({ breaks: true });
+            backgroundContent.innerHTML = marked.parse(backgroundContent.innerHTML);
+            storyContent.innerHTML = marked.parse(storyContent.innerHTML);
+        });
+    </script>
+</body>
+</html>

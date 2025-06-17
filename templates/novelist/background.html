@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>故事背景生成</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.7/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.2.12/marked.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .container { border: 1px solid #ddd; border-radius: 8px; padding: 20px; }
+        .title { font-size: 24px; font-weight: bold; margin-bottom: 20px; color: #333; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 10px; font-weight: 500; }
+        .framework-input { width: 100%; height: 150px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
+        
+        /* 按钮样式优化 */
+        .btn-group { 
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .action-btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            flex: 1;
+            min-width: 100px; /* 确保按钮在窄屏幕上有足够宽度 */
+        }
+        
+        .generate-btn { background-color: #2196F3; color: white; }
+        .complete-btn { background-color: #4CAF50; color: white; }
+        .back-btn { background-color: #607D8B; color: white; }
+        
+        .background-preview { background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 20px; min-height: 100px; }
+        .loading { display: none; text-align: center; color: #2196F3; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">故事背景生成</h1>
+        
+        <div class="form-group">
+            <label for="framework">输入故事背景框架 (可选)</label>
+            <textarea id="framework" class="framework-input" placeholder="Example: This is the story of Harry Potter, but Harry Potter himself is dead at the beginning of the story, killed by Lord Voldemort."></textarea>
+        </div>
+        
+        <!-- 优化后的按钮布局 -->
+        <div class="btn-group">
+            <button id="generate-btn" class="action-btn generate-btn">生成背景</button>
+            <button id="back-btn" class="action-btn back-btn">返回</button>
+            <span id="loading" class="loading">生成中...</span>
+        </div>
+        
+        <div class="form-group">
+            <label>生成的故事背景</label>
+            <div id="background-preview" class="background-preview">
+                {{ background | safe }}
+            </div>
+        </div>
+        
+        <button id="complete-btn" class="action-btn complete-btn" disabled>完成背景设定</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const generateBtn = document.getElementById('generate-btn');
+            const loading = document.getElementById('loading');
+            const backgroundPreview = document.getElementById('background-preview');
+            const completeBtn = document.getElementById('complete-btn');
+            const frameworkInput = document.getElementById('framework');
+            const backBtn = document.getElementById('back-btn');
+            
+            // 配置Marked解析器
+            marked.setOptions({
+                breaks: true,  // 支持换行
+                gfm: true      // 支持GitHub风格Markdown
+            });
+            
+            generateBtn.addEventListener('click', async function() {
+                loading.style.display = 'block';
+                generateBtn.disabled = true;
+                
+                try {
+                    const framework = frameworkInput.value;
+                    const response = await axios.post('/api/generate_background', { framework });
+                    
+                    if (response.data.success) {
+                        // 使用Markdown解析背景文本
+                        const backgroundMarkdown = response.data.background;
+                        backgroundPreview.innerHTML = marked.parse(backgroundMarkdown);
+                        completeBtn.disabled = false;
+                    } else {
+                        backgroundPreview.textContent = '生成背景失败: ' + response.data.error;
+                    }
+                } catch (error) {
+                    backgroundPreview.textContent = '生成背景出错: ' + error.message;
+                    console.error(error);
+                } finally {
+                    loading.style.display = 'none';
+                    generateBtn.disabled = false;
+                }
+            });
+            
+            completeBtn.addEventListener('click', function() {
+                if (backgroundPreview.textContent.trim()) {
+                    window.location.href = '/novelist/continue';
+                } else {
+                    alert('请先生成故事背景');
+                }
+            });
+            
+            // 返回按钮功能
+            backBtn.addEventListener('click', function() {
+                if (confirm('确定要返回吗？未保存的内容将会丢失。')) {
+                    window.history.back(); // 返回上一页
+                }
+            });
+        });
+    </script>
+</body>
+</html>

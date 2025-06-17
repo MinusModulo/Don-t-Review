@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英语近义词辨析</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .container { border: 1px solid #ddd; border-radius: 8px; padding: 20px; }
+        .title { font-size: 24px; font-weight: bold; margin-bottom: 20px; color: #333; }
+        .form-group { margin-bottom: 20px; }
+        .word-input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        .search-btn { padding: 10px 15px; background-color: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .error-message { color: red; margin-bottom: 15px; }
+        .result-section { margin-top: 30px; }
+        .synonym-card { background-color: #f9f9f9; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
+        .synonym-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #2196F3; }
+        .explanation { margin-bottom: 15px; }
+        .example { background-color: #f0f8ff; padding: 10px; border-radius: 5px; margin-bottom: 10px; }
+        .example-title { font-weight: bold; margin-bottom: 5px; }
+        .difference { font-style: italic; color: #555; }
+        .no-result { color: #888; font-style: italic; }
+        .btn-back {
+            background-color: #6c757d;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button id="back-to-menu" class="btn-back">返回菜单</button>
+        <h1 class="title">英语近义词辨析</h1>
+        
+        <form method="post" action="/process_synonym_query">
+            <div class="form-group">
+                <input type="text" name="word" class="word-input" 
+                       placeholder="输入英语单词" value="{{ word or '' }}">
+                {% if error %}
+                <div class="error-message">{{ error }}</div>
+                {% endif %}
+            </div>
+            <button type="submit" class="search-btn">查询近义词</button>
+        </form>
+        
+        <div class="result-section">
+            {% if synonyms is defined %}
+                {% if has_result %}
+                    {% for synonym, explanation in synonyms.items() %}
+                        <div class="synonym-card">
+                            <h3 class="synonym-title">近义词: {{ synonym }}</h3>
+                            <div class="explanation">{{ explanation }}</div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="no-result">未找到近义词</p>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 返回菜单
+            document.getElementById('back-to-menu').addEventListener('click', function() {
+                window.location.href = '/';
+            });
+        });
+    </script>
+</body>
+</html>
