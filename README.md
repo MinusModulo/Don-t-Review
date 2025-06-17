@@ -1,5 +1,7 @@
 # Don't Review 英语单词学习软件
 
+-  Don't Review 是一款可以将你从单词复习中解放的英语学习软件。
+
 ## 声明
 
 - 本项目仅用于清华大学 Introduction to Large Language Model Application 课程作业。
