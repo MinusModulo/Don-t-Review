@@ -13,7 +13,7 @@
 ## 使用方法
 
 - 将本项目 clone 进课程 pod 中
-- 在 project 目录下运行 main.py
+- 在 project 目录下运行 uvicorn main:app --reload
 - 在命令行中输入你的INFINI_AI API_KEY
 - 主界面会在 localhost:8000 上生成
 
