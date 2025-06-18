@@ -128,8 +128,9 @@ class ReviewManager:
 
         if action == 'keep':
             self.stats["session_kept"] += 1
-            if word_id not in self.learned_words:
+            if word_id not in self.old_queue:
                 self.old_queue.append(word_id)
+            if word_id not in self.learned_words:
                 self.learned_words.add(word_id)
                 
             # 更新单词学习元数据
